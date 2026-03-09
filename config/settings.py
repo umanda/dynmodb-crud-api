@@ -6,11 +6,12 @@ AWS_ACCESS_KEY_ID: str = os.environ.get("AWS_ACCESS_KEY_ID", "")
 AWS_SECRET_ACCESS_KEY: str = os.environ.get("AWS_SECRET_ACCESS_KEY", "")
 
 # ── DynamoDB tables ──────────────────────────────────────────────────────────
-# Testing: single restored table
-ACTIVE_TABLES: list[str] = ["test-KCRChannel-retored"]
-
-# Production (comment out above and uncomment below):
-# ACTIVE_TABLES: list[str] = ["BMIChannel", "KCRChannel", "KoreaChannel"]
+# Read from env (comma-separated) when deployed, fall back to dev default.
+ACTIVE_TABLES: list[str] = [
+    t.strip()
+    for t in os.environ.get("ACTIVE_TABLES", "test-KCRChannel-retored").split(",")
+    if t.strip()
+]
 
 # ── Auth0 ─────────────────────────────────────────────────────────────────────
 AUTH0_DOMAIN: str        = os.environ.get("AUTH0_DOMAIN",        "dev-umanda.us.auth0.com")

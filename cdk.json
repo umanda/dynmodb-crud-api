@@ -1,0 +1,51 @@
+{
+  "app": "python infra/app.py",
+  "watch": {
+    "include": ["infra/**", "Dockerfile.prod", "main.py"],
+    "exclude": ["**/__pycache__/**", "cdk.out/**"]
+  },
+  "context": {
+    "@aws-cdk/aws-lambda:recognizeLayerVersion": true,
+    "@aws-cdk/core:checkSecretUsage": true,
+    "@aws-cdk/core:enablePartitionLiterals": true,
+
+    "app_name": "dynmodb-crud-api",
+
+    "account": "",
+    "region": "us-east-1",
+
+    "tags": {
+      "Project": "dynmodb-crud-api",
+      "Environment": "dev",
+      "Owner": "umanda",
+      "ManagedBy": "cdk"
+    },
+
+    "dynamo_tables": [
+      "test-KCRChannel-retored"
+    ],
+
+    "network": {
+      "existing_vpc_id": "",
+      "max_azs": 2,
+      "nat_gateways": 1
+    },
+
+    "security": {
+      "existing_secret_arn": "",
+      "secret_name": "dynmodb-crud-api/auth0"
+    },
+
+    "compute": {
+      "cpu": 256,
+      "memory_mib": 512,
+      "desired_count": 1,
+      "min_capacity": 1,
+      "max_capacity": 4,
+      "cpu_scaling_target_percent": 70,
+      "container_port": 8000,
+      "enable_alb": true,
+      "log_retention_days": 14
+    }
+  }
+}
