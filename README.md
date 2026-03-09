@@ -1,7 +1,73 @@
-# DynamoDB Channel API — Local Dev Setup
+# DynamoDB Channel API
 
 FastAPI service that exposes your DynamoDB channel tables via a full CRUD REST API,
 with Swagger UI at `http://localhost:8000/docs`.
+
+Structured following [FastAPI Best Practices](https://github.com/zhanymkanov/fastapi-best-practices) — a domain-driven, modular layout inspired by Netflix's Dispatch.
+
+See [docs/best-practices.md](docs/best-practices.md) for contributor guidelines.
+
+---
+
+## Project Structure
+
+```
+dynmodb-crud-api/
+├── src/
+│   ├── __init__.py
+│   ├── main.py              # FastAPI app factory, lifespan, router includes
+│   ├── config.py             # Global settings (BaseSettings)
+│   ├── database.py           # DynamoDB resource factory
+│   ├── exceptions.py         # Global HTTP exception classes
+│   ├── auth/
+│   │   ├── __init__.py
+│   │   ├── config.py         # Auth0 settings (BaseSettings)
+│   │   ├── constants.py      # Algorithms, permission names
+│   │   ├── dependencies.py   # get_current_user, require_permission
+│   │   ├── exceptions.py     # Auth-specific exceptions
+│   │   ├── router.py         # POST /auth/token
+│   │   ├── schemas.py        # TokenRequest, TokenResponse
+│   │   └── service.py        # JWKS fetch, JWT decode, Auth0 token exchange
+│   └── channels/
+│       ├── __init__.py
+│       ├── config.py          # TABLES settings (BaseSettings)
+│       ├── constants.py       # DynamoDB field name mappings
+│       ├── dependencies.py    # validate_table dependency
+│       ├── exceptions.py      # ChannelNotFound, ChannelAlreadyExists, etc.
+│       ├── router.py          # All /channels endpoints
+│       ├── schemas.py         # ChannelWrite, ChannelPatch, ChannelResponse
+│       ├── service.py         # DynamoDB CRUD business logic
+│       └── utils.py           # normalize_item, model_to_dynamo
+├── tests/
+│   ├── __init__.py
+│   ├── auth/
+│   │   └── __init__.py
+│   └── channels/
+│       └── __init__.py
+├── docs/
+│   └── best-practices.md     # Contributor best-practices guide
+├── auth0.http
+├── auth0.http.sample
+├── docker-compose.yml
+├── Dockerfile
+├── requirements.txt
+└── README.md
+```
+
+### Module convention
+
+Each domain package (`auth/`, `channels/`) follows a consistent layout:
+
+| File | Purpose |
+|---|---|
+| `router.py` | Endpoint definitions (thin — delegates to service) |
+| `schemas.py` | Pydantic request/response models |
+| `service.py` | Business logic and data access |
+| `dependencies.py` | FastAPI dependencies (auth guards, validators) |
+| `config.py` | Domain-specific `BaseSettings` |
+| `constants.py` | Module constants and error codes |
+| `exceptions.py` | Module-specific HTTP exceptions |
+| `utils.py` | Non-business-logic helpers (normalization, etc.) |
 
 ---
 
@@ -80,17 +146,21 @@ cp .env.example .env
 
 ## 3 · Switch between Testing and Production tables
 
-In `main.py`, find the `TABLES` section near the top:
+Tables are configured via the `DYNAMODB_TABLES` env var (JSON array) or by editing
+`src/channels/config.py`:
 
 ```python
-# Testing: single restored table
-TABLES = ["test-KCRChannel-retored"]
-
-# Production (comment out above and uncomment below):
-# TABLES = ["BMIChannel", "KCRChannel", "KoreaChannel"]
+# Default (testing): single restored table
+DYNAMODB_TABLES: list[str] = ["test-KCRChannel-retored"]
 ```
 
-Switch the comments as needed, then rebuild the container.
+To switch to production, set the environment variable:
+
+```bash
+DYNAMODB_TABLES='["BMIChannel","KCRChannel","KoreaChannel"]'
+```
+
+Or override it in `docker-compose.yml`, then rebuild the container.
 
 ---
 
@@ -210,5 +280,5 @@ export AWS_ACCESS_KEY_ID=...
 export AWS_SECRET_ACCESS_KEY=...
 export AWS_DEFAULT_REGION=us-east-1
 
-uvicorn main:app --reload
+uvicorn src.main:app --reload
 ```

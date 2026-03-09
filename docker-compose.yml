@@ -18,4 +18,4 @@ services:
       - AUTH0_REALM=${AUTH0_REALM:-Username-Password-Authentication}
     volumes:
       # Live-reload: source changes are reflected instantly
-      - .:/app
+      - ./src:/app/src
