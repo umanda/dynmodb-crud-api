@@ -27,4 +27,10 @@ Thumbs.db
 # Logs
 *.log
 
+# CDK
+cdk.out/
+
+# Ansible
+*.retry
+
 auth0.http

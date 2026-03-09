@@ -1,0 +1,22 @@
+---
+# Variables for the API deployment — customise here
+docker_image_name: "dynmodb-crud-api"
+container_name: "dynmodb-crud-api"
+container_port: 8000
+host_port: 80
+
+# Path on the EC2 instance where the app will be deployed
+app_dir: "/opt/dynmodb-crud-api"
+
+# Environment variables injected into the container
+# Override these per-host in inventory or pass via --extra-vars
+app_env:
+  AWS_ACCESS_KEY_ID: ""
+  AWS_SECRET_ACCESS_KEY: ""
+  AWS_DEFAULT_REGION: "us-east-1"
+  ACTIVE_TABLES: "test-KCRChannel-retored"
+  AUTH0_DOMAIN: "dev-umanda.us.auth0.com"
+  AUTH0_AUDIENCE: "https://api.acme.test"
+  AUTH0_CLIENT_ID: ""
+  AUTH0_CLIENT_SECRET: ""
+  AUTH0_REALM: "Username-Password-Authentication"

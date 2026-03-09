@@ -1,0 +1,9 @@
+---
+# Main playbook — configures an EC2 instance to run the API in Docker
+- name: Deploy dynmodb-crud-api
+  hosts: api
+  become: true
+
+  roles:
+    - docker
+    - deploy

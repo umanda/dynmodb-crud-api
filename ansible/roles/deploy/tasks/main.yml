@@ -1,0 +1,52 @@
+---
+# Copy source, build Docker image, and run the container
+
+- name: Create app directory
+  ansible.builtin.file:
+    path: "{{ app_dir }}"
+    state: directory
+    owner: ec2-user
+    group: ec2-user
+    mode: "0755"
+
+- name: Sync project files to EC2
+  ansible.builtin.synchronize:
+    src: "{{ playbook_dir }}/../"
+    dest: "{{ app_dir }}/"
+    rsync_opts:
+      - "--exclude=.git"
+      - "--exclude=.env"
+      - "--exclude=cdk.out"
+      - "--exclude=__pycache__"
+      - "--exclude=ansible"
+      - "--exclude=infra"
+      - "--exclude=.venv"
+
+- name: Write .env file from variables
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ app_dir }}/.env"
+    owner: ec2-user
+    group: ec2-user
+    mode: "0600"
+
+- name: Build Docker image
+  community.docker.docker_image:
+    name: "{{ docker_image_name }}"
+    tag: latest
+    source: build
+    build:
+      path: "{{ app_dir }}"
+      dockerfile: Dockerfile.prod
+    force_source: true
+
+- name: Run API container
+  community.docker.docker_container:
+    name: "{{ container_name }}"
+    image: "{{ docker_image_name }}:latest"
+    state: started
+    restart_policy: unless-stopped
+    ports:
+      - "{{ host_port }}:{{ container_port }}"
+    env_file: "{{ app_dir }}/.env"
+    recreate: true
