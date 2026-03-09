@@ -186,6 +186,7 @@ Open **http://localhost:8000/docs** in your browser.
 
 | Method   | Path                        | Description                              |
 |----------|-----------------------------|------------------------------------------|
+| `POST`   | `/auth/token`               | Get Auth0 access token (ROPC flow)       |
 | `GET`    | `/channels`                 | Paginated list (all tables or one)       |
 | `GET`    | `/channels/{channel_code}`  | Fetch a single item by ChannelCode       |
 | `POST`   | `/channels`                 | Create a new channel                     |
