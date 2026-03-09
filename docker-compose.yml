@@ -10,6 +10,9 @@ services:
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+      # ── Auth0 ─────────────────────────────────────────────────────────────
+      - AUTH0_DOMAIN=${AUTH0_DOMAIN:-dev-umanda.us.auth0.com}
+      - AUTH0_AUDIENCE=${AUTH0_AUDIENCE:-https://api.acme.test}
     volumes:
       # Live-reload: source changes are reflected instantly
       - .:/app
