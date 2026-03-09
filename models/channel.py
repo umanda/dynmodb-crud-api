@@ -1,9 +1,31 @@
 from __future__ import annotations
 
-from pynamodb.attributes import ListAttribute, MapAttribute, UnicodeAttribute
+from pynamodb.attributes import Attribute, ListAttribute, MapAttribute, UnicodeAttribute
 from pynamodb.models import Model
 
 from config import AWS_ACCESS_KEY_ID, AWS_REGION, AWS_SECRET_ACCESS_KEY
+
+
+class FlexibleUnicodeAttribute(Attribute):
+    """
+    Accepts both DynamoDB String (S) and Boolean (BOOL) types,
+    always returning a Python string.  Writes back as String.
+    """
+    attr_type = "S"
+
+    def serialize(self, value):
+        if value is None:
+            return None
+        return str(value)
+
+    def deserialize(self, value):
+        return str(value) if value is not None else None
+
+    def get_value(self, value):
+        for key in ("S", "BOOL", "N"):
+            if key in value:
+                return value[key]
+        raise super().get_value(value)
 
 
 class ChannelModel(Model):
@@ -30,7 +52,7 @@ class ChannelModel(Model):
 
     # Optional attributes
     client = UnicodeAttribute(null=True)
-    tv = UnicodeAttribute(null=True)
+    tv = FlexibleUnicodeAttribute(null=True)
     label = UnicodeAttribute(null=True)
     project = UnicodeAttribute(null=True)
     url = ListAttribute(null=True)          # stored as list of {"S": "..."} or plain strings

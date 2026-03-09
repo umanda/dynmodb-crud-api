@@ -1,0 +1,1 @@
+from auth.interfaces.auth_service import AuthServiceInterface
