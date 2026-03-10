@@ -22,6 +22,12 @@ pip install -r requirements-cdk.txt
 
 ## 2. Configure
 
+Create your local CDK config from the sample:
+
+```powershell
+Copy-Item cdk.json.sample cdk.json
+```
+
 All settings live in `cdk.json` → `context`:
 
 | Key | Description | Default |
@@ -39,6 +45,43 @@ All settings live in `cdk.json` → `context`:
 
 > **Important**: Set `ec2.key_pair_name` to the name of an existing EC2 Key Pair in your target region.  
 > Restrict `ec2.allowed_ssh_cidrs` to your IP (e.g. `["203.0.113.10/32"]`) for production.
+
+### 2.1 Create and Save EC2 Key Pair (Required)
+
+`ec2.key_pair_name` must match an EC2 Key Pair that exists in the same AWS region as your deployment.
+
+On Windows PowerShell, you can create one with AWS CLI and save the private key locally:
+
+```powershell
+# 1) Choose a key name (this is what goes into cdk.json)
+$KEY_NAME = "dynmodb-crud-api-dev"
+
+# 2) Ensure local SSH folder exists
+New-Item -ItemType Directory -Force "$HOME\.ssh" | Out-Null
+
+# 3) Create key pair in AWS and save private key locally
+aws ec2 create-key-pair `
+  --region us-east-1 `
+  --key-name $KEY_NAME `
+  --query "KeyMaterial" `
+  --output text | Out-File -FilePath "$HOME\.ssh\$KEY_NAME.pem" -Encoding ascii
+
+# 4) Lock down file permissions
+icacls "$HOME\.ssh\$KEY_NAME.pem" /inheritance:r /grant:r "$env:USERNAME:(R)"
+```
+
+Then set the value in `cdk.json`:
+
+```json
+"ec2": {
+  "key_pair_name": "dynmodb-crud-api-dev"
+}
+```
+
+Notes:
+1. Save the `.pem` file outside the repo (for example, `%USERPROFILE%\\.ssh\\...`).
+2. Do not commit the `.pem` file to Git.
+3. If the `.pem` file is lost, AWS cannot recover it. Create a new key pair and update `ec2.key_pair_name`.
 
 ## 3. Deploy Infrastructure (CDK)
 

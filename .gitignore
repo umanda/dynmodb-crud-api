@@ -29,9 +29,10 @@ Thumbs.db
 
 # CDK
 cdk.out/
+cdk.json
+!cdk.json.sample
 
 # Ansible
 *.retry
 
 auth0.http
-cdk.json
