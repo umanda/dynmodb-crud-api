@@ -34,3 +34,4 @@ cdk.out/
 *.retry
 
 auth0.http
+cdk.json
