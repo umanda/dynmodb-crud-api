@@ -1,0 +1,1 @@
+from services.interfaces.channel import ChannelServiceInterface
