@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     """Global application settings loaded from environment variables."""
 
-    APP_TITLE: str = "DynamoDB Channel API"
+    APP_TITLE: str = "DynamoDB Channel API - Boto3 Auth0 MVC Example"
     APP_VERSION: str = "2.0.0"
     ENVIRONMENT: str = "local"
 
