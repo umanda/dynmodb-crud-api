@@ -1,0 +1,63 @@
+name: CD Deploy EC2
+
+on:
+  workflow_dispatch:
+    inputs:
+      host_ip:
+        description: "Target EC2 public IP (optional if using secret EC2_HOST)"
+        required: false
+        type: string
+
+env:
+  ANSIBLE_HOST_KEY_CHECKING: "False"
+
+jobs:
+  deploy:
+    name: Deploy via Ansible
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ansible
+        run: |
+          python -m pip install --upgrade pip
+          pip install "ansible-core>=2.20,<2.24" community.docker
+
+      - name: Prepare SSH key
+        run: |
+          mkdir -p ~/.ssh
+          printf "%s" "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key.pem
+          chmod 600 ~/.ssh/deploy_key.pem
+
+      - name: Build inventory from secret/input
+        shell: bash
+        run: |
+          HOST="${{ github.event.inputs.host_ip }}"
+          if [ -z "$HOST" ]; then
+            HOST="${{ secrets.EC2_HOST }}"
+          fi
+
+          if [ -z "$HOST" ]; then
+            echo "Host IP missing. Provide workflow input host_ip or secret EC2_HOST."
+            exit 1
+          fi
+
+          printf "%s\n" "[api]" > ansible/inventory.ci.ini
+          printf "%s\n" "${HOST} ansible_user=ec2-user ansible_ssh_private_key_file=~/.ssh/deploy_key.pem ansible_python_interpreter=/usr/bin/python3.9" >> ansible/inventory.ci.ini
+
+      - name: Run Ansible ping
+        working-directory: ansible
+        run: |
+          ansible api -i inventory.ci.ini -m ping
+
+      - name: Deploy playbook
+        working-directory: ansible
+        run: |
+          ansible-playbook -i inventory.ci.ini playbook.yml
