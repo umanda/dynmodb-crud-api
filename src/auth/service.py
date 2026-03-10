@@ -9,6 +9,22 @@ from src.auth.exceptions import InvalidTokenError, PublicKeyNotFoundError, Token
 _jwks_cache: dict = {}
 
 
+def _extract_email_claim(payload: dict) -> str | None:
+    """Return email from standard or custom Auth0 access-token claims."""
+    direct_email = payload.get("email")
+    if direct_email:
+        return direct_email
+
+    legacy_custom = payload.get("user-email")
+    if legacy_custom:
+        return legacy_custom
+
+    for key, value in payload.items():
+        if isinstance(key, str) and key.lower().endswith("/email") and value:
+            return str(value)
+    return None
+
+
 def get_jwks() -> dict:
     """Fetch and cache the Auth0 JWKS key set."""
     global _jwks_cache
@@ -46,6 +62,9 @@ def decode_token(token: str) -> dict:
             audience=auth_settings.AUTH0_AUDIENCE,
             issuer=auth_settings.issuer,
         )
+        email = _extract_email_claim(payload)
+        if email:
+            payload["email"] = email
         return payload
     except JWTError as e:
         raise InvalidTokenError(detail=f"Invalid token: {e}")

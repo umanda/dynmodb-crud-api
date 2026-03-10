@@ -171,6 +171,33 @@ cp .env.example .env
 # ACTIVITY_LOG_TABLE=test-table-activity-log
 ```
 
+### Mandatory Auth0 step for audit actor email
+
+This step is **required**. If omitted, audit records and notifications may miss the actor email.
+
+1. In Auth0 Dashboard, open **Actions → Flows → Post-Login**.
+2. Create a custom Post-Login Action (Node.js runtime).
+3. Add logic to inject email into the access token.
+4. Deploy the Action and add it to the Post-Login flow.
+5. Perform a fresh login and decode the new access token to verify the claim exists.
+
+Use this snippet in your Action:
+
+```javascript
+exports.onExecutePostLogin = async (event, api) => {
+  // Recommended: replace with your own URL namespace in production.
+  const namespace = 'user-email';
+
+  if (event.authorization && event.user && event.user.email) {
+    api.accessToken.setCustomClaim(`${namespace}`, event.user.email);
+  }
+};
+```
+
+Notes:
+- The API reads standard `email` and custom `user-email` claims for actor extraction.
+- Prefer a URL namespace claim in long-term production setups to align with OIDC recommendations.
+
 ---
 
 ## 3 · Switch between Testing and Production tables
