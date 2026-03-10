@@ -2,15 +2,119 @@ import boto3
 import json
 import os
 from typing import Optional, List
-from fastapi import FastAPI, Query, HTTPException, Body
+
+import httpx
+from fastapi import FastAPI, Query, HTTPException, Body, Depends, Security
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, OAuth2PasswordBearer
+from fastapi.openapi.models import OAuthFlows as OAuthFlowsModel
+from fastapi.security import OAuth2
 from boto3.dynamodb.conditions import Attr
 from botocore.exceptions import ClientError
+from jose import jwt, JWTError
 from pydantic import BaseModel, Field, field_validator
+
+# ── Auth0 config ─────────────────────────────────────────────────────────────
+AUTH0_DOMAIN       = os.environ.get("AUTH0_DOMAIN",        "dev-umanda.us.auth0.com")
+AUTH0_AUDIENCE     = os.environ.get("AUTH0_AUDIENCE",      "https://api.acme.test")
+AUTH0_CLIENT_ID    = os.environ.get("AUTH0_CLIENT_ID",     "gJwhRquTGMF5qeHlJB4kTnuu6J8BgvYr")
+AUTH0_CLIENT_SECRET= os.environ.get("AUTH0_CLIENT_SECRET", "")
+AUTH0_REALM        = os.environ.get("AUTH0_REALM",         "Username-Password-Authentication")
+AUTH0_ALGORITHMS   = ["RS256"]
+JWKS_URL           = f"https://{AUTH0_DOMAIN}/.well-known/jwks.json"
+TOKEN_URL          = f"https://{AUTH0_DOMAIN}/oauth/token"
+
+# Cache JWKS so we don't fetch on every request
+_jwks_cache: dict = {}
+
+_http_bearer = HTTPBearer()
+
+
+def _get_jwks() -> dict:
+    global _jwks_cache
+    if not _jwks_cache:
+        resp = httpx.get(JWKS_URL, timeout=10)
+        resp.raise_for_status()
+        _jwks_cache = resp.json()
+    return _jwks_cache
+
+
+def _decode_token(token: str) -> dict:
+    """Validate the JWT and return its payload."""
+    try:
+        jwks = _get_jwks()
+        unverified_header = jwt.get_unverified_header(token)
+        rsa_key = {}
+        for key in jwks.get("keys", []):
+            if key.get("kid") == unverified_header.get("kid"):
+                rsa_key = {
+                    "kty": key["kty"],
+                    "kid": key["kid"],
+                    "use": key["use"],
+                    "n":   key["n"],
+                    "e":   key["e"],
+                }
+                break
+        if not rsa_key:
+            raise HTTPException(status_code=401, detail="Unable to find matching public key.")
+
+        payload = jwt.decode(
+            token,
+            rsa_key,
+            algorithms=AUTH0_ALGORITHMS,
+            audience=AUTH0_AUDIENCE,
+            issuer=f"https://{AUTH0_DOMAIN}/",
+        )
+        return payload
+    except JWTError as e:
+        raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Token validation failed: {str(e)}")
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Security(_http_bearer),
+) -> dict:
+    """FastAPI dependency — decodes & validates the Bearer token."""
+    return _decode_token(credentials.credentials)
+
+
+def require_permission(permission: str):
+    """
+    Returns a FastAPI dependency that enforces a specific Auth0 permission.
+
+    Usage:
+        @app.get("/channels", dependencies=[Depends(require_permission("read:channel"))])
+    """
+    def _check(user: dict = Depends(get_current_user)):
+        granted: list = user.get("permissions", [])
+        if permission not in granted:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Permission denied. Required: '{permission}'. Granted: {granted}",
+            )
+        return user
+    _check.__name__ = f"require_{permission.replace(':', '_')}"
+    return _check
+
+
+# ── FastAPI app ───────────────────────────────────────────────────────────────
 
 app = FastAPI(
     title="DynamoDB Channel API",
     description="""
 Browse, create, update, and delete channel items stored in DynamoDB.
+
+**Auth:** All endpoints require a valid Auth0 Bearer token.  
+Use the **Authorize 🔒** button and log in with your Auth0 username/password.
+
+| Permission | Endpoints |
+|---|---|
+| `read:channel` | GET /channels, GET /channels/{id} |
+| `write:channel` | POST /channels |
+| `edit:channel` | PUT /channels/{id}, PATCH /channels/{id} |
+| `delete:channel` | DELETE /channels/{id} |
 
 **Current active table:** `test-KCRChannel-retored`
 
@@ -19,8 +123,82 @@ Browse, create, update, and delete channel items stored in DynamoDB.
 **Swagger UI:** `http://localhost:8000/docs`  
 **ReDoc:** `http://localhost:8000/redoc`
 """,
-    version="1.1.0",
+    version="1.2.0",
+    swagger_ui_oauth2_redirect_url="/oauth2-redirect",
+    swagger_ui_init_oauth={
+        "clientId": AUTH0_CLIENT_ID,
+        "appName": "DynamoDB Channel API",
+        "scopes": "openid profile email",
+        "usePkceWithAuthorizationCodeGrant": False,
+    },
 )
+
+# ── Auth token endpoint (also exposed in Swagger) ────────────────────────────
+
+class TokenRequest(BaseModel):
+    username: str = Field(..., example="user-admin@acme.test")
+    password: str = Field(..., example="!@#$Qwer1234")
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str
+    expires_in: int
+    scope: str
+
+
+@app.post(
+    "/auth/token",
+    response_model=TokenResponse,
+    tags=["Auth"],
+    summary="Get Auth0 access token (Resource Owner Password flow)",
+    description="""
+Exchange Auth0 username + password for a Bearer token.
+
+The token is returned as `access_token`. Copy it and click **Authorize 🔒**
+above, then paste it into the **BearerAuth** field to authenticate all other endpoints.
+
+**Test users:**
+
+| User | Role | Permissions |
+|---|---|---|
+| `user-admin@acme.test` | Admin | read, write, edit, delete |
+| `user-editor@acme.test` | Editor | read, edit |
+| `user-viewer@acme.test` | Viewer | read |
+| `user-manager@acme.test` | Manager | read, write, edit |
+
+Password for all: `!@#$Qwer1234`
+""",
+)
+def get_token(body: TokenRequest):
+    resp = httpx.post(
+        TOKEN_URL,
+        json={
+            "grant_type": "password",
+            "username": body.username,
+            "password": body.password,
+            "realm": AUTH0_REALM,
+            "client_id": AUTH0_CLIENT_ID,
+            "client_secret": AUTH0_CLIENT_SECRET,
+            "audience": AUTH0_AUDIENCE,
+            "scope": "openid profile email",
+        },
+        timeout=15,
+    )
+    if resp.status_code != 200:
+        try:
+            detail = resp.json().get("error_description", resp.text)
+        except Exception:
+            detail = resp.text
+        raise HTTPException(status_code=resp.status_code, detail=detail)
+    data = resp.json()
+    return TokenResponse(
+        access_token=data["access_token"],
+        token_type=data.get("token_type", "Bearer"),
+        expires_in=data.get("expires_in", 86400),
+        scope=data.get("scope", ""),
+    )
+
 
 # ── Active tables ─────────────────────────────────────────────────────────────
 # Testing: single restored table
@@ -252,7 +430,8 @@ def model_to_dynamo(m: ChannelWrite, pk: str = "id", sk: str = None) -> dict:
 # GET  /channels  – paginated list
 # ════════════════════════════════════════════════════════════════════════════
 
-@app.get("/channels", summary="List all channels (paginated)", tags=["Channels"])
+@app.get("/channels", summary="List all channels (paginated)", tags=["Channels"],
+         dependencies=[Depends(require_permission("read:channel"))])
 def list_channels(
     table: Optional[str] = Query(default=None, description="Filter by table name.", enum=TABLES),
     limit: int = Query(default=20, ge=1, le=100, description="Items per page (1–100)"),
@@ -312,7 +491,8 @@ def list_channels(
 # GET  /channels/{channel_code}
 # ════════════════════════════════════════════════════════════════════════════
 
-@app.get("/channels/{channel_code}", summary="Get a channel by ChannelCode", tags=["Channels"])
+@app.get("/channels/{channel_code}", summary="Get a channel by ChannelCode", tags=["Channels"],
+          dependencies=[Depends(require_permission("read:channel"))])
 def get_channel(
     channel_code: str,
     table: Optional[str] = Query(default=None, description="Narrow search to one table.", enum=TABLES),
@@ -349,7 +529,8 @@ def get_channel(
 # POST  /channels  – create
 # ════════════════════════════════════════════════════════════════════════════
 
-@app.post("/channels", summary="Create a new channel", tags=["Channels"], status_code=201)
+@app.post("/channels", summary="Create a new channel", tags=["Channels"], status_code=201,
+          dependencies=[Depends(require_permission("write:channel"))])
 def create_channel(
     payload: ChannelWrite = Body(
         openapi_examples={
@@ -410,7 +591,8 @@ def create_channel(
 # PUT  /channels/{channel_code}  – full replace
 # ════════════════════════════════════════════════════════════════════════════
 
-@app.put("/channels/{channel_code}", summary="Fully replace a channel", tags=["Channels"])
+@app.put("/channels/{channel_code}", summary="Fully replace a channel", tags=["Channels"],
+         dependencies=[Depends(require_permission("edit:channel"))])
 def replace_channel(
     channel_code: str,
     payload: ChannelWrite = Body(
@@ -476,7 +658,8 @@ def replace_channel(
 # PATCH  /channels/{channel_code}  – partial update
 # ════════════════════════════════════════════════════════════════════════════
 
-@app.patch("/channels/{channel_code}", summary="Partially update a channel", tags=["Channels"])
+@app.patch("/channels/{channel_code}", summary="Partially update a channel", tags=["Channels"],
+           dependencies=[Depends(require_permission("edit:channel"))])
 def patch_channel(
     channel_code: str,
     payload: ChannelPatch = Body(
@@ -559,7 +742,8 @@ def patch_channel(
 # DELETE  /channels/{channel_code}
 # ════════════════════════════════════════════════════════════════════════════
 
-@app.delete("/channels/{channel_code}", summary="Delete a channel", tags=["Channels"])
+@app.delete("/channels/{channel_code}", summary="Delete a channel", tags=["Channels"],
+            dependencies=[Depends(require_permission("delete:channel"))])
 def delete_channel(
     channel_code: str,
     table: str = Query(..., description="Target DynamoDB table (required).", enum=TABLES),
