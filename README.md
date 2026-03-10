@@ -9,6 +9,44 @@ See [docs/best-practices.md](docs/best-practices.md) for contributor guidelines.
 
 ---
 
+## CI/CD (GitHub Actions)
+
+This repository includes two workflows:
+
+1. `CI` (`.github/workflows/ci.yml`)
+2. `CD Deploy EC2` (`.github/workflows/cd-deploy-ec2.yml`)
+
+### CI
+
+Runs on push to `main` and pull requests:
+
+- Python compile checks (`python -m compileall src infra`)
+- `pytest` execution
+- Ansible playbook syntax check
+
+### CD (Manual Deploy to EC2)
+
+Runs via **GitHub Actions -> CD Deploy EC2 -> Run workflow**.
+
+Required repository secrets:
+
+- `EC2_SSH_PRIVATE_KEY`: full private key content (PEM text)
+- `EC2_HOST`: EC2 public IP or DNS (optional if you provide `host_ip` input when running the workflow)
+
+Recommended:
+
+- Use GitHub Environment `production` with required reviewers for deploy approvals.
+
+The deploy workflow will:
+
+1. Install Ansible
+2. Create a temporary SSH key file on runner
+3. Generate `ansible/inventory.ci.ini`
+4. Run `ansible ping`
+5. Run `ansible-playbook`
+
+---
+
 ## Project Structure
 
 ```
