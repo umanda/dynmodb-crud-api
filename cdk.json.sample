@@ -1,5 +1,5 @@
 {
-  "app": "python infra/app.py",
+  "app": "python -m infra.app",
   "watch": {
     "include": ["infra/**"],
     "exclude": ["**/__pycache__/**", "cdk.out/**"]
@@ -42,6 +42,23 @@
       "host_port": 80,
       "docker_image_name": "dynmodb-crud-api",
       "env_file": ".env"
+    },
+
+    "deploy": {
+      "mode": "ec2",
+      "ecr": {
+        "repository_name": "dynmodb-crud-api",
+        "scan_on_push": true,
+        "image_tag_mutability": "MUTABLE"
+      },
+      "ecs": {
+        "cpu": 256,
+        "memory_mib": 512,
+        "desired_count": 0,
+        "image_tag": "latest",
+        "health_check_path": "/health",
+        "assign_public_ip": true
+      }
     }
   }
 }
