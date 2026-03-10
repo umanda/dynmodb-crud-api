@@ -50,7 +50,9 @@ All settings live in `cdk.json` → `context`:
 
 `ec2.key_pair_name` must match an EC2 Key Pair that exists in the same AWS region as your deployment.
 
-On Windows PowerShell, you can create one with AWS CLI and save the private key locally:
+### Windows (PowerShell)
+
+Create one with AWS CLI and save the private key locally:
 
 ```powershell
 # 1) Choose a key name (this is what goes into cdk.json)
@@ -68,6 +70,28 @@ aws ec2 create-key-pair `
 
 # 4) Lock down file permissions
 icacls "$HOME\.ssh\$KEY_NAME.pem" /inheritance:r /grant:r "$env:USERNAME:(R)"
+```
+
+### Linux / macOS (bash or zsh)
+
+Create one with AWS CLI and save the private key locally:
+
+```bash
+# 1) Choose a key name (this is what goes into cdk.json)
+KEY_NAME="dynmodb-crud-api-dev"
+
+# 2) Ensure local SSH folder exists
+mkdir -p ~/.ssh
+
+# 3) Create key pair in AWS and save private key locally
+aws ec2 create-key-pair \
+  --region us-east-1 \
+  --key-name "$KEY_NAME" \
+  --query 'KeyMaterial' \
+  --output text > ~/.ssh/${KEY_NAME}.pem
+
+# 4) Lock down file permissions
+chmod 400 ~/.ssh/${KEY_NAME}.pem
 ```
 
 Then set the value in `cdk.json`:
