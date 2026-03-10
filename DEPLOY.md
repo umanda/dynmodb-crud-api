@@ -163,7 +163,27 @@ app_env:
   AUTH0_REALM: "Username-Password-Authentication"
 ```
 
-## 6. Run Ansible Playbook
+## 6. Test Ansible Connectivity
+
+Before running the deployment playbook, verify SSH access from Ansible:
+
+```bash
+cd ansible
+ansible api -i inventory.ini -m ping
+```
+
+Expected success output (example):
+
+```text
+3.92.74.59 | SUCCESS => {
+  "changed": false,
+  "ping": "pong"
+}
+```
+
+> A Python interpreter discovery warning may appear. This is usually informational and does not block deployment.
+
+## 7. Run Ansible Playbook
 
 ```bash
 cd ansible
@@ -177,7 +197,7 @@ This will:
 4. Build the Docker image using `Dockerfile.prod`
 5. Start the container with `--restart unless-stopped` on port 80
 
-## 7. Verify
+## 8. Verify
 
 ```bash
 # Swagger UI
