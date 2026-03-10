@@ -5,7 +5,7 @@ class ChannelsConfig(BaseSettings):
     """Channel-specific configuration."""
 
     # Testing: single restored table
-    DYNAMODB_TABLES: list[str] = ["test-KCRChannel-retored"]
+    DYNAMODB_TABLES: list[str] = ["test-table"]
 
     # Production (override via env var):
     # DYNAMODB_TABLES='["LiveChannelTable_1","KCRChannel","KoreaChannel"]'

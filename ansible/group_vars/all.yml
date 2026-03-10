@@ -14,7 +14,7 @@ app_env:
   AWS_ACCESS_KEY_ID: ""
   AWS_SECRET_ACCESS_KEY: ""
   AWS_DEFAULT_REGION: "us-east-1"
-  ACTIVE_TABLES: "test-KCRChannel-retored"
+  ACTIVE_TABLES: "test-table"
   AUTH0_DOMAIN: "dev-umanda.us.auth0.com"
   AUTH0_AUDIENCE: "https://api.acme.test"
   AUTH0_CLIENT_ID: ""

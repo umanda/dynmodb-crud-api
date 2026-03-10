@@ -90,7 +90,7 @@ def create_channel(
             "TESTService-A channel": {
                 "summary": "Standard TESTService-A channel",
                 "value": {
-                    "_table": "test-KCRChannel-retored",
+                    "_table": "test-table",
                     "ChannelCode": "UST59FOXWEATHER",
                     "TVorRadio": "true",
                     "Label": "nattvnormal",
@@ -134,7 +134,7 @@ def replace_channel(
             "Full replace": {
                 "summary": "Replace all fields",
                 "value": {
-                    "_table": "test-KCRChannel-retored",
+                    "_table": "test-table",
                     "ChannelCode": "UST59FOXWEATHER",
                     "TVorRadio": "true",
                     "Label": "nattvnormal",
@@ -180,7 +180,7 @@ def patch_channel(
             "Partial update": {
                 "summary": "Update service and label only",
                 "value": {
-                    "_table": "test-KCRChannel-retored",
+                    "_table": "test-table",
                     "ChannelCode": "UST59FOXWEATHER",
                     "Label": "nattvnormal_updated",
                     "URLs": ["http://185.45.98.43:8080/hls/UST59FOXWEATHER_updated.m3u8"],

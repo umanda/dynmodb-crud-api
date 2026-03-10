@@ -106,7 +106,7 @@ Attach this **inline policy** for the three production tables:
 
 ### Testing policy (full CRUD on restored table)
 
-Used during local testing against `test-table-retored`:
+Used during local testing against `test-table`:
 
 ```json
 {
@@ -124,7 +124,7 @@ Used during local testing against `test-table-retored`:
         "dynamodb:DeleteItem"
       ],
       "Resource": [
-        "arn:aws:dynamodb:*:*:table/test-table-retored"
+        "arn:aws:dynamodb:*:*:table/test-table"
       ]
     }
   ]
@@ -151,7 +151,7 @@ Tables are configured via the `DYNAMODB_TABLES` env var (JSON array) or by editi
 
 ```python
 # Default (testing): single restored table
-DYNAMODB_TABLES: list[str] = ["test-table-retored"]
+DYNAMODB_TABLES: list[str] = ["test-table"]
 ```
 
 To switch to production, set the environment variable:
@@ -212,7 +212,7 @@ GET /channels?limit=10&last_evaluated_key={"id":{"S":"CH001"}}
 
 ```
 GET /channels/TESTChannelCode
-GET /channels/TESTChannelCode?table=test-table-retored
+GET /channels/TESTChannelCode?table=test-table
 ```
 
 ### Create a channel (POST)
@@ -222,7 +222,7 @@ GET /channels/TESTChannelCode?table=test-table-retored
 ```json
 POST /channels
 {
-  "_table": "test-table-retored",
+  "_table": "test-table",
   "ChannelCode": "TESTChannelCode",
   "Service": "TESTService-A",
   "URLs": ["https://test-media-feed.com/mp3"]
@@ -238,7 +238,7 @@ Overwrites **all** fields. `_table`, `ChannelCode` (must match URL), and `URLs` 
 ```json
 PUT /channels/TESTChannelCode
 {
-  "_table": "test-table-retored",
+  "_table": "test-table",
   "ChannelCode": "TESTChannelCode",
   "Service": "TESTService-A",
   "Client": "Global",
@@ -254,7 +254,7 @@ Only the fields you send are changed; everything else stays as-is.
 ```json
 PATCH /channels/TESTChannelCode
 {
-  "_table": "test-table-retored",
+  "_table": "test-table",
   "ChannelCode": "TESTChannelCode",
   "Service": "KCR_UPDATED",
   "URLs": ["https://test-media-feed.com/mp3"]
@@ -266,7 +266,7 @@ PATCH /channels/TESTChannelCode
 `table` query param and path `channel_code` are **mandatory**.
 
 ```
-DELETE /channels/TESTChannelCode?table=test-table-retored
+DELETE /channels/TESTChannelCode?table=test-table
 ```
 
 ---

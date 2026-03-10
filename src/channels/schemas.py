@@ -19,7 +19,7 @@ class ChannelWrite(BaseModel):
         "populate_by_name": True,
         "json_schema_extra": {
             "example": {
-                "_table": "test-KCRChannel-retored",
+                "_table": "test-table",
                 "ChannelCode": "UST59FOXWEATHER",
                 "Client": None,
                 "TVorRadio": "true",
@@ -62,7 +62,7 @@ class ChannelPatch(BaseModel):
         "populate_by_name": True,
         "json_schema_extra": {
             "example": {
-                "_table": "test-KCRChannel-retored",
+                "_table": "test-table",
                 "ChannelCode": "UST59FOXWEATHER",
                 "Label": "nattvnormal",
                 "Service": "KCR_UPDATED",
