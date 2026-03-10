@@ -4,6 +4,7 @@ from fastapi import FastAPI
 
 from src.auth.config import auth_settings
 from src.auth.router import router as auth_router
+from src.activity_logs.router import router as activity_logs_router
 from src.channels.config import channels_settings
 from src.channels.router import router as channels_router
 from src.channels.service import discover_table_keys, TABLES
@@ -51,6 +52,7 @@ Use the **Authorize 🔒** button and log in with your Auth0 username/password.
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(auth_router)
 app.include_router(channels_router)
+app.include_router(activity_logs_router)
 
 
 # ── Meta endpoints ────────────────────────────────────────────────────────────

@@ -19,6 +19,16 @@ dynmodb-crud-api/
 │   ├── config.py             # Global settings (BaseSettings)
 │   ├── database.py           # DynamoDB resource factory
 │   ├── exceptions.py         # Global HTTP exception classes
+│   ├── activity_logs/
+│   │   ├── __init__.py
+│   │   ├── config.py         # Activity log table settings
+│   │   ├── router.py         # GET /activity-logs, /activity-logs/search
+│   │   ├── schemas.py        # Activity log response models
+│   │   └── service.py        # Audit write/list/search logic
+│   ├── notifications/
+│   │   ├── __init__.py
+│   │   ├── config.py         # Notification settings (GChat webhook)
+│   │   └── service.py        # GChat notification formatting + send
 │   ├── auth/
 │   │   ├── __init__.py
 │   │   ├── config.py         # Auth0 settings (BaseSettings)
@@ -126,6 +136,19 @@ Used during local testing against `test-table`:
       "Resource": [
         "arn:aws:dynamodb:*:*:table/test-table"
       ]
+    },
+    {
+      "Sid": "ActivityLogReadWrite",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:Scan",
+        "dynamodb:GetItem",
+        "dynamodb:DescribeTable",
+        "dynamodb:PutItem"
+      ],
+      "Resource": [
+        "arn:aws:dynamodb:*:*:table/test-table-activity-log"
+      ]
     }
   ]
 }
@@ -140,6 +163,12 @@ Download the **Access Key ID** and **Secret Access Key**.
 ```bash
 cp .env.example .env
 # Edit .env and paste your key + secret
+
+# Optional for notifications
+# GCHAT_WEBHOOK_URL=https://chat.googleapis.com/v1/spaces/.../messages?key=...&token=...
+
+# Audit log table name
+# ACTIVITY_LOG_TABLE=test-table-activity-log
 ```
 
 ---
@@ -193,6 +222,8 @@ Open **http://localhost:8000/docs** in your browser.
 | `PUT`    | `/channels/{channel_code}`  | Fully replace an existing channel        |
 | `PATCH`  | `/channels/{channel_code}`  | Partially update an existing channel     |
 | `DELETE` | `/channels/{channel_code}`  | Delete a channel                         |
+| `GET`    | `/activity-logs`            | List audit logs (paginated)              |
+| `GET`    | `/activity-logs/search`     | Search audit logs by keyword             |
 | `GET`    | `/tables`                   | List managed table names                 |
 | `GET`    | `/health`                   | Health check                             |
 
@@ -268,6 +299,28 @@ PATCH /channels/TESTChannelCode
 ```
 DELETE /channels/TESTChannelCode?table=test-table
 ```
+
+### List activity logs
+
+```
+GET /activity-logs?limit=20
+```
+
+### Search activity logs by keyword
+
+Searches across actor info and payload data, including values such as email, ChannelCode, Service, and URLs.
+
+```
+GET /activity-logs/search?keyword=user-admin@acme.test&limit=20
+GET /activity-logs/search?keyword=UST59FOXWEATHER
+```
+
+### Mutation audit + notification behavior
+
+- Every `POST`, `PUT`, `PATCH`, and `DELETE` on channels writes one record to `ACTIVITY_LOG_TABLE`.
+- Audit records include: action, HTTP method, who performed the action, when it happened (UTC), source table, channel id, and before/after data.
+- For `PUT` and `PATCH`, the API stores both old and new values.
+- The API sends a Google Chat webhook notification (if `GCHAT_WEBHOOK_URL` is configured) that includes actor and timestamp.
 
 ---
 
