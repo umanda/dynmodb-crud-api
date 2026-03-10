@@ -36,3 +36,5 @@ cdk.json
 *.retry
 
 auth0.http
+cdk.context.json
+ansible/inventory-sample.ini
