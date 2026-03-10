@@ -11,10 +11,18 @@ See [docs/best-practices.md](docs/best-practices.md) for contributor guidelines.
 
 ## CI/CD (GitHub Actions)
 
-This repository includes two workflows:
+This repository includes three workflows:
 
 1. `CI` (`.github/workflows/ci.yml`)
 2. `CD Deploy EC2` (`.github/workflows/cd-deploy-ec2.yml`)
+3. `CD Deploy ECS` (`.github/workflows/cd-deploy-ecs.yml`)
+
+Deployment modes supported:
+
+1. `EC2 + Ansible` (implemented and currently working)
+2. `ECR + ECS` (recommended Docker-native path for experimentation)
+
+See `DEPLOY.md` for full instructions, including a dedicated section for ECR/ECS.
 
 ### CI
 
@@ -44,6 +52,29 @@ The deploy workflow will:
 3. Generate `ansible/inventory.ci.ini`
 4. Run `ansible ping`
 5. Run `ansible-playbook`
+
+### CD (Manual Deploy to ECS)
+
+Runs via **GitHub Actions -> CD Deploy ECS -> Run workflow**.
+
+Required repository secret:
+
+- `AWS_ROLE_TO_ASSUME`: IAM role ARN for GitHub OIDC deployment.
+
+Important workflow inputs:
+
+- `deploy_infra`: set to `true` if you want the workflow to run CDK ECS infra deployment first.
+- `ecr_repository`: defaults to `dynmodb-crud-api`.
+- `ecs_cluster`: defaults to `dynmodb-crud-api-cluster`.
+- `ecs_service`: defaults to `dynmodb-crud-api-service`.
+- `desired_count`: ECS desired tasks after rollout.
+
+The ECS deploy workflow will:
+
+1. Assume AWS role via OIDC
+2. Optionally run `cdk deploy` for ECS stacks
+3. Build and push Docker image to ECR (`latest` and commit SHA tags)
+4. Force ECS service deployment and wait until service is stable
 
 ---
 
