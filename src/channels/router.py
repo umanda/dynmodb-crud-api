@@ -82,7 +82,6 @@ def get_channel(
     "/channels",
     summary="Create a new channel",
     status_code=201,
-    dependencies=[Depends(require_permission(PERMISSION_WRITE_CHANNEL))],
 )
 def create_channel(
     payload: ChannelWrite = Body(
@@ -100,6 +99,7 @@ def create_channel(
             }
         }
     ),
+    user: dict = Depends(require_permission(PERMISSION_WRITE_CHANNEL)),
 ):
     """
     Creates a new channel item in DynamoDB.
@@ -114,7 +114,7 @@ def create_channel(
     Returns **409 Conflict** if a channel with the same ChannelCode already exists.
     """
     validate_table(payload.table)
-    return channel_service.create_channel(payload)
+    return channel_service.create_channel(payload, user)
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -125,7 +125,6 @@ def create_channel(
 @router.put(
     "/channels/{channel_code}",
     summary="Fully replace a channel",
-    dependencies=[Depends(require_permission(PERMISSION_EDIT_CHANNEL))],
 )
 def replace_channel(
     channel_code: str,
@@ -145,6 +144,7 @@ def replace_channel(
             }
         }
     ),
+    user: dict = Depends(require_permission(PERMISSION_EDIT_CHANNEL)),
 ):
     """
     **Full replacement** — all fields are overwritten with what you provide.
@@ -160,7 +160,7 @@ def replace_channel(
     if payload.ChannelCode != channel_code:
         raise ChannelCodeMismatchError(body_code=payload.ChannelCode, path_code=channel_code)
     validate_table(payload.table)
-    return channel_service.replace_channel(channel_code, payload)
+    return channel_service.replace_channel(channel_code, payload, user)
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -171,7 +171,6 @@ def replace_channel(
 @router.patch(
     "/channels/{channel_code}",
     summary="Partially update a channel",
-    dependencies=[Depends(require_permission(PERMISSION_EDIT_CHANNEL))],
 )
 def patch_channel(
     channel_code: str,
@@ -188,6 +187,7 @@ def patch_channel(
             }
         }
     ),
+    user: dict = Depends(require_permission(PERMISSION_EDIT_CHANNEL)),
 ):
     """
     **Partial update** — only the fields you supply are changed; omitted fields keep their existing values.
@@ -203,7 +203,7 @@ def patch_channel(
     if payload.ChannelCode != channel_code:
         raise ChannelCodeMismatchError(body_code=payload.ChannelCode, path_code=channel_code)
     validate_table(payload.table)
-    return channel_service.patch_channel(channel_code, payload)
+    return channel_service.patch_channel(channel_code, payload, user)
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -214,11 +214,11 @@ def patch_channel(
 @router.delete(
     "/channels/{channel_code}",
     summary="Delete a channel",
-    dependencies=[Depends(require_permission(PERMISSION_DELETE_CHANNEL))],
 )
 def delete_channel(
     channel_code: str,
     table: str = Query(..., description="Target DynamoDB table (required).", enum=TABLES),
+    user: dict = Depends(require_permission(PERMISSION_DELETE_CHANNEL)),
 ):
     """
     Deletes the channel item identified by *channel_code*.
@@ -229,4 +229,4 @@ def delete_channel(
     Returns **404** if the channel does not exist.
     """
     validate_table(table)
-    return channel_service.delete_channel(channel_code, table)
+    return channel_service.delete_channel(channel_code, table, user)

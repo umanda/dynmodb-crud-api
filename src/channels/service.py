@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 from typing import Any
 
 from boto3.dynamodb.conditions import Attr
@@ -16,11 +17,17 @@ from src.channels.exceptions import (
 )
 from src.channels.schemas import ChannelPatch, ChannelWrite
 from src.channels.utils import model_to_dynamo, normalize_item
+from src.activity_logs import service as activity_log_service
+from src.notifications import service as notification_service
 
 TABLES = channels_settings.DYNAMODB_TABLES
 
 # Populated at startup: { "TableName": {"pk": "id", "sk": "service"} }
 TABLE_KEYS: dict[str, dict[str, str | None]] = {}
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 def discover_table_keys() -> None:
@@ -151,7 +158,7 @@ def get_channel(channel_code: str, table: str | None = None) -> dict:
     raise ChannelNotFoundError(channel_code)
 
 
-def create_channel(payload: ChannelWrite) -> dict:
+def create_channel(payload: ChannelWrite, user: dict | None = None) -> dict:
     """Create a new channel item in DynamoDB."""
     dynamo = get_dynamodb_resource()
     tbl = dynamo.Table(payload.table)
@@ -171,16 +178,39 @@ def create_channel(payload: ChannelWrite) -> dict:
             raise ChannelAlreadyExistsError(payload.ChannelCode, payload.table)
         raise DynamoDBError(detail=str(e))
 
-    return {**normalize_item(item, pk), "_table": payload.table}
+    created = {**normalize_item(item, pk), "_table": payload.table}
+    occurred_at = _utc_now_iso()
+    activity_log_service.log_channel_activity(
+        action="CREATE",
+        http_method="POST",
+        source_table=payload.table,
+        channel_code=payload.ChannelCode,
+        user=user,
+        before=None,
+        after=created,
+        occurred_at=occurred_at,
+    )
+    notification_service.notify_channel_change(
+        action="CREATE",
+        source_table=payload.table,
+        before=None,
+        after=created,
+        user=user,
+        occurred_at=occurred_at,
+    )
+    return created
 
 
-def replace_channel(channel_code: str, payload: ChannelWrite) -> dict:
+def replace_channel(channel_code: str, payload: ChannelWrite, user: dict | None = None) -> dict:
     """Fully replace an existing channel item."""
     dynamo = get_dynamodb_resource()
     tbl = dynamo.Table(payload.table)
     pk = get_table_key(payload.table)
     sk = get_table_sk(payload.table)
     item = model_to_dynamo(payload, pk, sk)
+
+    before_item = fetch_or_404(tbl, channel_code)
+    before = {**normalize_item(before_item, pk), "_table": payload.table}
 
     try:
         tbl.put_item(
@@ -194,10 +224,30 @@ def replace_channel(channel_code: str, payload: ChannelWrite) -> dict:
             raise ChannelNotFoundError(channel_code)
         raise DynamoDBError(detail=str(e))
 
-    return {**normalize_item(item, pk), "_table": payload.table}
+    updated = {**normalize_item(item, pk), "_table": payload.table}
+    occurred_at = _utc_now_iso()
+    activity_log_service.log_channel_activity(
+        action="UPDATE",
+        http_method="PUT",
+        source_table=payload.table,
+        channel_code=payload.ChannelCode,
+        user=user,
+        before=before,
+        after=updated,
+        occurred_at=occurred_at,
+    )
+    notification_service.notify_channel_change(
+        action="UPDATE",
+        source_table=payload.table,
+        before=before,
+        after=updated,
+        user=user,
+        occurred_at=occurred_at,
+    )
+    return updated
 
 
-def patch_channel(channel_code: str, payload: ChannelPatch) -> dict:
+def patch_channel(channel_code: str, payload: ChannelPatch, user: dict | None = None) -> dict:
     """Partially update a channel, preserving existing values for omitted fields."""
     dynamo = get_dynamodb_resource()
     tbl = dynamo.Table(payload.table)
@@ -205,6 +255,7 @@ def patch_channel(channel_code: str, payload: ChannelPatch) -> dict:
     sk = get_table_sk(payload.table)
 
     existing = fetch_or_404(tbl, channel_code)
+    before = {**normalize_item(existing, pk), "_table": payload.table}
     existing_sk_value = existing.get(sk) if sk else None
 
     field_map = {
@@ -238,10 +289,30 @@ def patch_channel(channel_code: str, payload: ChannelPatch) -> dict:
         raise DynamoDBError(detail=str(e))
 
     updated = fetch_or_404(tbl, channel_code)
-    return {**normalize_item(updated, pk), "_table": payload.table}
+    updated_normalized = {**normalize_item(updated, pk), "_table": payload.table}
+    occurred_at = _utc_now_iso()
+    activity_log_service.log_channel_activity(
+        action="UPDATE",
+        http_method="PATCH",
+        source_table=payload.table,
+        channel_code=payload.ChannelCode,
+        user=user,
+        before=before,
+        after=updated_normalized,
+        occurred_at=occurred_at,
+    )
+    notification_service.notify_channel_change(
+        action="UPDATE",
+        source_table=payload.table,
+        before=before,
+        after=updated_normalized,
+        user=user,
+        occurred_at=occurred_at,
+    )
+    return updated_normalized
 
 
-def delete_channel(channel_code: str, table: str) -> dict:
+def delete_channel(channel_code: str, table: str, user: dict | None = None) -> dict:
     """Delete a channel item from DynamoDB."""
     dynamo = get_dynamodb_resource()
     tbl = dynamo.Table(table)
@@ -249,6 +320,7 @@ def delete_channel(channel_code: str, table: str) -> dict:
     sk = get_table_sk(table)
 
     item = fetch_or_404(tbl, channel_code)
+    before = {**normalize_item(item, pk), "_table": table}
 
     key = {pk: channel_code}
     if sk:
@@ -261,5 +333,25 @@ def delete_channel(channel_code: str, table: str) -> dict:
         tbl.delete_item(Key=key)
     except ClientError as e:
         raise DynamoDBError(detail=str(e))
+
+    occurred_at = _utc_now_iso()
+    activity_log_service.log_channel_activity(
+        action="DELETE",
+        http_method="DELETE",
+        source_table=table,
+        channel_code=channel_code,
+        user=user,
+        before=before,
+        after=None,
+        occurred_at=occurred_at,
+    )
+    notification_service.notify_channel_change(
+        action="DELETE",
+        source_table=table,
+        before=before,
+        after=None,
+        user=user,
+        occurred_at=occurred_at,
+    )
 
     return {"deleted": True, "ChannelCode": channel_code, "_table": table}
