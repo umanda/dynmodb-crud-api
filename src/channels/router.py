@@ -87,14 +87,14 @@ def get_channel(
 def create_channel(
     payload: ChannelWrite = Body(
         openapi_examples={
-            "KCR channel": {
-                "summary": "Standard KCR channel",
+            "TESTService-A channel": {
+                "summary": "Standard TESTService-A channel",
                 "value": {
                     "_table": "test-KCRChannel-retored",
                     "ChannelCode": "UST59FOXWEATHER",
                     "TVorRadio": "true",
                     "Label": "nattvnormal",
-                    "Service": "KCR",
+                    "Service": "TESTService-A",
                     "URLs": ["http://185.45.98.43:8080/hls/UST59FOXWEATHER.m3u8"],
                 },
             }
@@ -139,7 +139,7 @@ def replace_channel(
                     "TVorRadio": "true",
                     "Label": "nattvnormal",
                     "Client": "SomeClient",
-                    "Service": "KCR",
+                    "Service": "TESTService-A",
                     "URLs": ["http://185.45.98.43:8080/hls/UST59FOXWEATHER.m3u8"],
                 },
             }

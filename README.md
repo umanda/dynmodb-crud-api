@@ -95,9 +95,9 @@ Attach this **inline policy** for the three production tables:
         "dynamodb:DescribeTable"
       ],
       "Resource": [
-        "arn:aws:dynamodb:*:*:table/BMIChannel",
-        "arn:aws:dynamodb:*:*:table/KCRChannel",
-        "arn:aws:dynamodb:*:*:table/KoreaChannel"
+        "arn:aws:dynamodb:*:*:table/LiveChannelTable_1",
+        "arn:aws:dynamodb:*:*:table/LiveChannelTable_2",
+        "arn:aws:dynamodb:*:*:table/LiveChannelTable_3"
       ]
     }
   ]
@@ -106,7 +106,7 @@ Attach this **inline policy** for the three production tables:
 
 ### Testing policy (full CRUD on restored table)
 
-Used during local testing against `test-KCRChannel-retored`:
+Used during local testing against `test-table-retored`:
 
 ```json
 {
@@ -124,7 +124,7 @@ Used during local testing against `test-KCRChannel-retored`:
         "dynamodb:DeleteItem"
       ],
       "Resource": [
-        "arn:aws:dynamodb:*:*:table/test-KCRChannel-retored"
+        "arn:aws:dynamodb:*:*:table/test-table-retored"
       ]
     }
   ]
@@ -151,13 +151,13 @@ Tables are configured via the `DYNAMODB_TABLES` env var (JSON array) or by editi
 
 ```python
 # Default (testing): single restored table
-DYNAMODB_TABLES: list[str] = ["test-KCRChannel-retored"]
+DYNAMODB_TABLES: list[str] = ["test-table-retored"]
 ```
 
 To switch to production, set the environment variable:
 
 ```bash
-DYNAMODB_TABLES='["BMIChannel","KCRChannel","KoreaChannel"]'
+DYNAMODB_TABLES='["LiveChannelTable_1","LiveChannelTable_2","LiveChannelTable_3"]'
 ```
 
 Or override it in `docker-compose.yml`, then rebuild the container.
@@ -211,8 +211,8 @@ GET /channels?limit=10&last_evaluated_key={"id":{"S":"CH001"}}
 ### Lookup by ChannelCode
 
 ```
-GET /channels/GBR149CapitalDance
-GET /channels/GBR149CapitalDance?table=test-KCRChannel-retored
+GET /channels/TESTChannelCode
+GET /channels/TESTChannelCode?table=test-table-retored
 ```
 
 ### Create a channel (POST)
@@ -222,10 +222,10 @@ GET /channels/GBR149CapitalDance?table=test-KCRChannel-retored
 ```json
 POST /channels
 {
-  "_table": "test-KCRChannel-retored",
-  "ChannelCode": "GBR149CapitalDance",
-  "Service": "KCR",
-  "URLs": ["https://media-ssl.musicradio.com/CapitalDance?isLoggedIn=false"]
+  "_table": "test-table-retored",
+  "ChannelCode": "TESTChannelCode",
+  "Service": "TESTService-A",
+  "URLs": ["https://test-media-feed.com/mp3"]
 }
 ```
 
@@ -236,13 +236,13 @@ Returns `409 Conflict` if the ChannelCode already exists.
 Overwrites **all** fields. `_table`, `ChannelCode` (must match URL), and `URLs` are **mandatory**.
 
 ```json
-PUT /channels/GBR149CapitalDance
+PUT /channels/TESTChannelCode
 {
-  "_table": "test-KCRChannel-retored",
-  "ChannelCode": "GBR149CapitalDance",
-  "Service": "KCR",
+  "_table": "test-table-retored",
+  "ChannelCode": "TESTChannelCode",
+  "Service": "TESTService-A",
   "Client": "Global",
-  "URLs": ["https://media-ssl.musicradio.com/CapitalDance?isLoggedIn=false"]
+  "URLs": ["https://test-media-feed.com/mp3"]
 }
 ```
 
@@ -252,12 +252,12 @@ Only the fields you send are changed; everything else stays as-is.
 `_table`, `ChannelCode` (must match URL, **cannot be changed**), and `URLs` are **mandatory**.
 
 ```json
-PATCH /channels/GBR149CapitalDance
+PATCH /channels/TESTChannelCode
 {
-  "_table": "test-KCRChannel-retored",
-  "ChannelCode": "GBR149CapitalDance",
+  "_table": "test-table-retored",
+  "ChannelCode": "TESTChannelCode",
   "Service": "KCR_UPDATED",
-  "URLs": ["https://media-ssl.musicradio.com/CapitalDance?isLoggedIn=false"]
+  "URLs": ["https://test-media-feed.com/mp3"]
 }
 ```
 
@@ -266,7 +266,7 @@ PATCH /channels/GBR149CapitalDance
 `table` query param and path `channel_code` are **mandatory**.
 
 ```
-DELETE /channels/GBR149CapitalDance?table=test-KCRChannel-retored
+DELETE /channels/TESTChannelCode?table=test-table-retored
 ```
 
 ---

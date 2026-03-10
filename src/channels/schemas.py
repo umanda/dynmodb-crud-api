@@ -25,7 +25,7 @@ class ChannelWrite(BaseModel):
                 "TVorRadio": "true",
                 "Label": "nattvnormal",
                 "Project": None,
-                "Service": "KCR",
+                "Service": "TESTService-A",
                 "URLs": ["http://185.45.98.43:8080/hls/UST59FOXWEATHER.m3u8"],
             }
         },

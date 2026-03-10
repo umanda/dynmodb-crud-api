@@ -8,7 +8,7 @@ class ChannelsConfig(BaseSettings):
     DYNAMODB_TABLES: list[str] = ["test-KCRChannel-retored"]
 
     # Production (override via env var):
-    # DYNAMODB_TABLES='["BMIChannel","KCRChannel","KoreaChannel"]'
+    # DYNAMODB_TABLES='["LiveChannelTable_1","KCRChannel","KoreaChannel"]'
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 
