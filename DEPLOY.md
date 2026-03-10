@@ -101,9 +101,21 @@ dynmodb-crud-api-compute.SSHCommand = ssh -i <key>.pem ec2-user@54.x.x.x
 dynmodb-crud-api-compute.AnsibleTarget = 54.x.x.x
 ```
 
-## 4. Configure Ansible Inventory
+## 4. Create and Configure Ansible Inventory
 
-Edit `ansible/inventory.ini` and replace the placeholder with the EC2 public IP:
+Create a local inventory file from the sample first:
+
+```bash
+cp ansible/inventory-sample.ini ansible/inventory.ini
+```
+
+> If your sample file is named `ansible/inventory.sample.ini` in your local branch, use:
+>
+> ```bash
+> cp ansible/inventory.sample.ini ansible/inventory.ini
+> ```
+
+Then edit `ansible/inventory.ini` and replace the placeholder with the EC2 public IP and your real key:
 
 ```ini
 [api]
@@ -168,6 +180,28 @@ This will rsync the updated code, rebuild the Docker image, and recreate the con
 cdk destroy --all
 ```
 
+### Delete Entire CloudFormation Stacks Manually
+
+If you want to force cleanup stack-by-stack using AWS CLI:
+
+```bash
+aws cloudformation delete-stack --stack-name dynmodb-crud-api-compute --region us-east-1
+aws cloudformation delete-stack --stack-name dynmodb-crud-api-network --region us-east-1
+```
+
+Wait for deletion to complete:
+
+```bash
+aws cloudformation wait stack-delete-complete --stack-name dynmodb-crud-api-compute --region us-east-1
+aws cloudformation wait stack-delete-complete --stack-name dynmodb-crud-api-network --region us-east-1
+```
+
+Optional: delete CDK bootstrap stack as well (only if not used by other CDK apps in the same account/region):
+
+```bash
+aws cloudformation delete-stack --stack-name CDKToolkit --region us-east-1
+```
+
 ## Architecture
 
 ```
@@ -198,6 +232,10 @@ cdk destroy --all
 
 | Problem | Fix |
 |---------|-----|
+| `Error reading config file ... ansible.cfg: File contains no section headers` | Ensure `ansible/ansible.cfg` is INI format and does **not** start with `---` |
+| `no such identity: ~/.ssh/<your-key>.pem` | Replace placeholder key path in `ansible/inventory.ini` with a real `.pem` file path |
+| `Permission denied (publickey)` right after deploy | Check EC2 `KeyName` is not `None`: `aws ec2 describe-instances --instance-ids <id> --region us-east-1 --query 'Reservations[0].Instances[0].KeyName' --output text` |
+| EC2 `KeyName` is `None` | Set `cdk.json` -> `context.ec2.key_pair_name` and redeploy compute stack |
 | SSH timeout | Check SG allows your IP on port 22 and key pair name is correct |
 | Ansible `unreachable` | Verify inventory IP and SSH key path |
 | Container not starting | SSH in and run `docker logs dynmodb-crud-api` |

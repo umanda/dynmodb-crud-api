@@ -38,3 +38,4 @@ cdk.json
 auth0.http
 cdk.context.json
 ansible/inventory.ini
+ansible/ansible.cfg
