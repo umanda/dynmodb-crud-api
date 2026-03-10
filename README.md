@@ -7,6 +7,8 @@ Structured following [FastAPI Best Practices](https://github.com/zhanymkanov/fas
 
 See [docs/best-practices.md](docs/best-practices.md) for contributor guidelines.
 
+Testing guide: [docs/testing.md](docs/testing.md)
+
 ---
 
 ## CI/CD (GitHub Actions)
